@@ -14,7 +14,6 @@ const { createApp, ref, onMounted, watch } = Vue
 
         let searchBy = planName ? planName : isin;
 
-
         let api = `https://z5fp7xmfuwwaqhzckxqjcffx4a0pnare.lambda-url.eu-west-2.on.aws/api/plan/paginated/records?limit=${limit}&sortBy=ASCENDING&sortByField=ISIN`;
 
         return api;
