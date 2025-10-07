@@ -29,11 +29,13 @@ const { createApp, ref, onMounted } = Vue
         } 
       }
       
-      const fetdDoc = async () => {
+      const fetchDoc = async () => {
       	try {
         	const res = await fetch (
           	`{{plan-api-service-url}}/brochure/download-url?key=documents/PLAN123/brochures/test.pdf&mimeType=application/pdf&expiration=3600`
           )
+        } catch (error) {
+          	console.error("Error fetching doc:", error)
         }
       }
 
