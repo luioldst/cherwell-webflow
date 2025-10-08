@@ -29,8 +29,6 @@ const { createApp, ref, onMounted } = Vue
         } 
       }
 
-       let doc = doc ? 'true' : 'false';
-      
       const fetchPhoto = async () => {
       	try {
         	const res = await fetch (
