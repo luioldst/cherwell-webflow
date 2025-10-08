@@ -21,7 +21,6 @@ const { createApp, ref, onMounted } = Vue
           console.log("API Response:", data)
           
           product.value = data.body || {}
-          console.log(data.body)
 
           fetchPhoto();
           
@@ -40,7 +39,7 @@ const { createApp, ref, onMounted } = Vue
 
           const data = await res.json();
           console.log("API Response:", data)
-          
+
         } catch (error) {
           	console.error("Error fetching doc:", error)
         }
