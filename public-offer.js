@@ -11,11 +11,12 @@ const { createApp, ref, onMounted } = Vue
         return params.get('i');
       }
 
-      const apiBase = `https://z5fp7xmfuwwaqhzckxqjcffx4a0pnare.lambda-url.eu-west-2.on.aws/api`;
+      const apiBase = `https://2ze36jo4itwg7543dk6ad5qj3e0qymvg.lambda-url.eu-west-2.on.aws/api`;
+      const fileApiBAse = `https://2ze36jo4itwg7543dk6ad5qj3e0qymvg.lambda-url.eu-west-2.on.aws/api`;
       const headers = {
               method: 'GET',
               headers: {
-                'X-API-KEY': 'abb882de-f0df-4b2d-bd59-2ff41c9d5c6a'
+                'X-API-KEY': '54ca81d8-4c46-4cba-804e-ef1c65d430af'
               }
             }
 
@@ -30,17 +31,17 @@ const { createApp, ref, onMounted } = Vue
             headers
           )
           const data = await res.json()
-
-          console.log("API Response:", data)
           
           product.value = data.body || {}
 
-          fetchDocs('adviser-guide');
-          fetchDocs('key-information-document');
-          fetchDocs('document');
-          fetchDocs('brochure');
+          data.body.documentFlags.forEach(flag => { 
+            fetchDocs();
+          })
+
           fetchPhoto();
           loading.value = false;
+
+    
           
           
         } catch (error) {
@@ -55,8 +56,7 @@ const { createApp, ref, onMounted } = Vue
         loadingDoc.value = true;
       	try {
         	const res = await fetch (
-          	`${apiBase}/${docType}/plan/${product.value.planId}`,
-          	// `https://z5fp7xmfuwwaqhzckxqjcffx4a0pnare.lambda-url.eu-west-2.on.aws/api/${docType}/plan/{planId}?key=${product.value.offerPhotoS3Key}&mimeType=${product.value.offerPhotoS3MimeType}&expiration=3600`,
+          	`${apiBase}/document/plan/${product.value.planId}`,
             headers
           )
 
@@ -74,8 +74,6 @@ const { createApp, ref, onMounted } = Vue
 
           docs.value.push(...files);
           //offerPhoto.value = data.body;
-
-          fetchPhoto();
 
           console.log(docs.value);
           loadingDoc.value = false;
@@ -108,11 +106,11 @@ const { createApp, ref, onMounted } = Vue
           	try {
             	const res = await fetch (
               		// `${apiBase}/${doc.type}/plan/${doc.planId}?key=${doc.fileDetails.key}&mimeType=${doc.fileDetails.mimeType}&expiration=10000`,
-              		`${apiBase}/${doc.type}/download-url?key=${doc.fileDetails.key}&mimeType=${doc.fileDetails.mimeType}&expiration=10000`,
+              		`${fileApiBAse}/document/download-url?key=${doc.fileDetails.key}&mimeType=${doc.fileDetails.mimeType}&expiration=10000`,
                   headers
               )
               const data = await res.json();
-              window.location.href = data.body;
+              window.open(data.body, '_blank');
               // loading.value = false;
             } catch (error) {
               alert('There was an error downloading the document. Please try again.')
@@ -120,7 +118,9 @@ const { createApp, ref, onMounted } = Vue
             }
           }
 
-          downloadDoc()
+          if (doc.fileDetails['key']) {
+            downloadDoc()
+          }
       }
 
       const onImageError = (e) => {

@@ -3,44 +3,67 @@ const { createApp, ref, onMounted, watch } = Vue
 createApp({
   setup() {
 
-    const $apiBase = `https://z5fp7xmfuwwaqhzckxqjcffx4a0pnare.lambda-url.eu-west-2.on.aws/api`;
+    const $apiBase = `https://2ze36jo4itwg7543dk6ad5qj3e0qymvg.lambda-url.eu-west-2.on.aws/api`;
+    // const fileApiBAse = `https://2ze36jo4itwg7543dk6ad5qj3e0qymvg.lambda-url.eu-west-2.on.aws`;
+    const fileApiBAse = `https://2ze36jo4itwg7543dk6ad5qj3e0qymvg.lambda-url.eu-west-2.on.aws/api`;
+    
     const headers = {
       method: 'GET',
       headers: {
-        'X-API-KEY': 'abb882de-f0df-4b2d-bd59-2ff41c9d5c6a'
+        'X-API-KEY': '54ca81d8-4c46-4cba-804e-ef1c65d430af'
       }
     }
-    const cursorPointer = `%7B%22GSI1PK%22%3A%22PLAN%23PLAN_NAME%22%2C%22GSI1SK%22%3A%2210%2010%20PLAN%20-%20OPTION%201%20-%20MAY%202021%22%2C%22SK%22%3A%2201K5E68CBNPVNJ40DMESQNH7YD%22%2C%22PK%22%3A%22PLAN%22%7D`
+    // const cursorPointer = `%7B%22SK%22%3A%2201K5E6A9WHBGFN70N1CTQ04XB3%22%2C%22PK%22%3A%22PLAN%22%2C%22GSI5PK%22%3A%22PLAN%23START_DATE%22%2C%22GSI5SK%22%3A%222025-07-10T16%3A00%3A00.000Z%22%7D`
     const keyword = ref('');
     const searchBy = ref('PLAN_NAME');
     const loading = ref(false);
     const open = ref('');
     const limit = ref(10);
     const products = ref([]);
-    const hasNextPage = ref(true)
-    const hasPreviousPage = ref(false)
+    const expiredProducts = ref([]);
+    const nextCursor = ref('');
+    const prevCursor = ref('');
+    const nextCursorExpired = ref('');
+    const prevCursorExpired = ref('');
+    const activeTab = ref('active-offers');
 
     const toggleAccordion = (product_id) => {
       open.value = (open.value === product_id) ? '' : product_id;
     }
 
-    const endpoint = (direction, sortByField, sortOrder, hasCursor = false) => {
-      const searchKey = searchBy.value === 'PLAN_NAME' ? 'plan' : 'isin';
+    const endpoint = (direction, sortByField, sortOrder, hasCursor = false, isExpired = false) => {
+      const searchKey = searchBy.value === 'PLAN_NAME' ? 'planName' : 'isin';
+      const cursorPointer = isExpired ? (direction === 'next' ? nextCursorExpired.value : prevCursorExpired.value) : (direction === 'next' ? nextCursor.value : prevCursor.value);
+
+      console.log(encodeURIComponent(JSON.stringify(cursorPointer)));
       
 
-
-      return `${$apiBase}/plan/paginated/records?limit=${limit.value || 10}&sortBy=${sortOrder || 'ASCENDING'}&sortByField=${sortByField}&${searchKey}=${keyword.value || ''}&direction=${direction || ''}&issuance=UK private placement${hasCursor ? `&cursorPointer=${cursorPointer}` : ''}`;
+      return `${$apiBase}/plan/paginated/records?limit=${limit.value || 10}&sortBy=${sortOrder || 'ASCENDING'}&sortByField=${sortByField}&direction=${direction || ''}&issuance=UK private placement${hasCursor ? `&cursorPointer=${encodeURIComponent(cursorPointer)}` : ''}&isExpired=${isExpired}&${searchKey}=${keyword.value || '' }`;
     }
 
-    const searchProducts = async (direction, sortByField, sortOrder, hasCursor) => {
+    const searchProducts = async (direction, sortByField, sortOrder, hasCursor, isExpired) => {
       loading.value = true;
       try {
-        const res = await fetch(endpoint(direction, sortByField, sortOrder, hasCursor), headers);
+        const res = await fetch(endpoint(direction, sortByField, sortOrder, hasCursor, isExpired), headers);
         const data = await res.json();
-        products.value = data.body?.data || [];
 
-        hasNextPage.value = data.body['nextCursorPointer'];
-        hasPreviousPage.value = data.body['prevCursorPointer'];
+        data.body['data'].forEach(item => {
+          item.hasBrochure = item.documentFlags.indexOf('brochure') !== -1;
+        });
+
+        if (isExpired) {
+          expiredProducts.value = data.body?.data || [];
+          nextCursorExpired.value = data.body['nextCursorPointer'];
+          prevCursorExpired.value = data.body['prevCursorPointer'];
+        } else {
+          products.value = data.body?.data || [];
+          nextCursor.value = data.body['nextCursorPointer'];
+          prevCursor.value = data.body['prevCursorPointer'];
+        }
+
+        console.log(expiredProducts.value);
+        
+
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -48,16 +71,19 @@ createApp({
       }
     }
     
-    const nextPage = () => {
-      searchProducts('next', 'START_DATE', 'DESCENDING', true);
+    const nextPage = (isExpired) => {
+      searchProducts('next', 'START_DATE', 'DESCENDING', true, isExpired);
+
+      
     }
 
-    const previousPage = () => {
-      searchProducts('prev', 'START_DATE', 'DESCENDING', true);
+    const previousPage = (isExpired = false) => {
+      searchProducts('prev', 'START_DATE', 'DESCENDING', true, isExpired);
     }
 
     const initSearch = () => {
-      searchProducts('', 'START_DATE', 'DESCENDING');
+      searchProducts('', 'START_DATE', 'DESCENDING', false, true);
+      searchProducts('', 'START_DATE', 'DESCENDING', false, false);
     }
 
     const formatDate = (dateStr) => {
@@ -69,9 +95,70 @@ createApp({
         return `${month}/${day}/${year}`;
      };
 
+     const switchTab = (tab) => {
+       activeTab.value = tab;
+
+       console.log(activeTab.value);
+     }
+
+     const downloadBrochure = (planId) => {
+       console.log('DOWNLOAD BROCHURE', planId);
+       let doc = {};
+       loading.value = true;
+
+       const fetchKeys = async (planId) => {
+        try {
+          const res = await fetch (
+            `${$apiBase}/document/plan/${planId}`,
+              headers
+          )
+
+          const data = await res.json();
+          
+          doc = data.body;
+
+          data.body.forEach ( (item) => {
+            if (item.documentType == 'brochure') {
+              doc = item;
+            }
+
+          } )
+
+          downloadDoc(doc);
+
+        } catch (error) {
+          // alert('There was an error downloading the brochure. Please try again.')
+        }
+      }
+
+      const downloadDoc = async (doc) => {
+        console.log('→ downloadDoc called', doc);
+        if (!doc?.fileDetails) {
+          console.error('fileDetails missing');
+          return;
+        }
+        console.log('→ about to fetch', `${fileApiBAse}/document/download-url?...`);
+        try {
+          const res = await fetch(
+            `${fileApiBAse}/document/download-url?key=${doc.fileDetails.key}&mimeType=${doc.fileDetails.mimeType}&expiration=10000`,
+            headers
+          );
+          const data = await res.json();
+          window.open(data.body, '_blank');
+          loading.value = false;
+        } catch (err) {
+          console.error('→ fetch failed', err);
+          loading.value = false;
+        }
+      };
+
+        fetchKeys(planId)
+     }
+
     onMounted(() => {
-      console.log('ON MOUNTED')
-      searchProducts('', 'START_DATE', 'DESCENDING');
+      console.log('ON MOUNTED', activeTab.value)
+      searchProducts('', 'START_DATE', 'DESCENDING', false, false);
+      searchProducts('', 'START_DATE', 'DESCENDING', false, true);
     });
 
     return {
@@ -85,10 +172,16 @@ createApp({
       loading,
       nextPage,
       previousPage,
-      hasPreviousPage,
-      hasNextPage,
       initSearch,
-      formatDate // expose it to template
+      formatDate, // expose it to template,
+      activeTab,
+      switchTab,
+      expiredProducts,
+      nextCursor,
+      nextCursorExpired,
+      prevCursor,
+      prevCursorExpired,
+      downloadBrochure
     }
   }
 }).mount('#app')
